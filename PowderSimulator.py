@@ -62,15 +62,19 @@ class Meltpool:
             self.composition[particle.material] = particle.mass
         self._NormalizeVolume()
 
-Ti64 = Material("Ti64", 4.5)
-H13 = Material("H13", 8.5)
+Ti = Material("Ti", 4.506)
+Al = Material("Al", 2.70)
+V = Material("Al", 6.0)
 
-H13_ParticleGenerator = NormalParticleGenerator(H13, 0, 1e-5, 1.0)
-Ti64_ParticleGenerator = NormalParticleGenerator(Ti64, 0, 4e-6, 0.02)
+overallFlowRate = 20.0
 
-ParticleGenerators = [H13_ParticleGenerator, Ti64_ParticleGenerator]
+Ti_ParticleGenerator = NormalParticleGenerator(Ti, 1e-6, 1e-6, overallFlowRate * 0.90)
+Al_ParticleGenerator = NormalParticleGenerator(Al, 1e-6, 1e-6, overallFlowRate * 0.06)
+V_ParticleGenerator = NormalParticleGenerator(V, 1e-6, 1e-6, overallFlowRate * 0.04)
 
-meltpool = Meltpool(3e-4, {Ti64: 0.0, H13: 100.0})
+ParticleGenerators = [Ti_ParticleGenerator, Al_ParticleGenerator, V_ParticleGenerator]
+
+meltpool = Meltpool(2e-3, {Ti: 90.0, Al: 6.0, V: 4.0})
 
 f = open("output.csv", "w")
 
