@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 
 SIMULATION_DURATION = 1
 
@@ -15,6 +16,24 @@ class Particle:
         self.mass = mass
         self.volume = volume
         self.material = material
+
+class IdenticalParticleGenerator:
+    def _RegenerateNextParticleTime(self, t):
+        self._nextParticleTime = t + np.random.exponential(self._beta)
+
+    def __init__(self, material, mass, mass_flow_rate, t = 0):
+        self._material = material
+        self._mass = mass
+        self._beta = mass / mass_flow_rate
+        self._RegenerateNextParticleTime(t)
+
+    def GenerateParticle(self, t):
+        self._RegenerateNextParticleTime(t)
+        volume = self._mass / self._material.density
+        return Particle(self._material, self._mass, volume)
+
+    def GetNextParticleTime(self):
+        return self._nextParticleTime
 
 class NormalParticleGenerator:
     def _RegenerateNextParticleTime(self, t):
@@ -62,57 +81,52 @@ class Meltpool:
             self.composition[particle.material] = particle.mass
         self._NormalizeVolume()
 
-Ti = Material("Ti", 4.506)
-Al = Material("Al", 2.70)
-V = Material("Al", 6.0)
+def Run(meltpool, ParticleGenerators, simulationDuration):
+    print ""
 
-overallFlowRate = 20.0
+    T = []
+    compositionHistory = dict()
+    printTime = 0
+    t = 0
+    while t < simulationDuration:
+        # Record the material composition
+        #if t >= printTime:
 
-Ti_ParticleGenerator = NormalParticleGenerator(Ti, 1e-6, 1e-6, overallFlowRate * 0.90)
-Al_ParticleGenerator = NormalParticleGenerator(Al, 1e-6, 1e-6, overallFlowRate * 0.06)
-V_ParticleGenerator = NormalParticleGenerator(V, 1e-6, 1e-6, overallFlowRate * 0.04)
-
-ParticleGenerators = [Ti_ParticleGenerator, Al_ParticleGenerator, V_ParticleGenerator]
-
-meltpool = Meltpool(2e-3, {Ti: 90.0, Al: 6.0, V: 4.0})
-
-f = open("output.csv", "w")
-
-printTime = 0
-t = 0
-while t < SIMULATION_DURATION:
-    # Record the material composition
-    if t >= printTime:
         composition = meltpool.GetComposition()
 
         massSum = 0
         for material, mass in composition.iteritems():
             massSum = massSum + mass
 
-        print "t:", t
-        print "Composition:"
-        
+        if t >= printTime:
+            sys.stdout.write("\rSimulation Status: {0:.0f}%".format((t / simulationDuration) * 100))
+            sys.stdout.flush()
+
+        #f.write(str(t))
+        #for material, mass in composition.iteritems():
+        #    f.write(', ' + str(mass / massSum))
+        #f.write('\n')
+
+        T.append(t)
         for material, mass in composition.iteritems():
-            print '\t', material,': ', mass / massSum
+            if not material in compositionHistory:
+                compositionHistory[material] = []
+            compositionHistory[material].append(mass / massSum)
 
-        f.write(str(t))
-        for material, mass in composition.iteritems():
-            f.write(', ' + str(mass / massSum))
-        f.write('\n')
+        #printTime = printTime + 0.001
 
-        printTime = printTime + 0.001
+        # Get the time of the next particle intersection
+        nextParticleGenerator = ParticleGenerators[0]
+        for p in ParticleGenerators[1:]:
+            if p.GetNextParticleTime() < nextParticleGenerator.GetNextParticleTime():
+                nextParticleGenerator = p
 
-    # Get the time of the next particle intersection
-    nextParticleGenerator = ParticleGenerators[0]
-    for p in ParticleGenerators[1:]:
-        if p.GetNextParticleTime() < nextParticleGenerator.GetNextParticleTime():
-            nextParticleGenerator = p
+        # Fast forward to next particle collision
+        t = nextParticleGenerator.GetNextParticleTime()
 
-    # Fast forward to next particle collision
-    t = nextParticleGenerator.GetNextParticleTime()
+        # Get the particle & add to the meltpool
+        particle = nextParticleGenerator.GenerateParticle(t)
+        meltpool.AddParticle(particle)
 
-    # Get the particle & add to the meltpool
-    particle = nextParticleGenerator.GenerateParticle(t)
-    meltpool.AddParticle(particle)
+    return T, compositionHistory
 
-f.close()
