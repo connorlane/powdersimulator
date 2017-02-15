@@ -2,31 +2,47 @@ import PowderSimulator
 import matplotlib.pyplot as plt
 import numpy as np
 
-simulationDuration = 1.0
-meltpoolVolume = 2e-3
-particleMeltpoolRatio = 100
-meltpoolVolumesPerMinute = 1000
+numberOfParticles = 5e4
+particleVolume = 1e-4
 percentAddition = 0.001
 
 M = []
 OUT = dict()
-while percentAddition < 0.999:
+while percentAddition < 1:
+    simulationDuration = numberOfParticles
+
     Met1 = PowderSimulator.Material("Met1", 1.0)
     Met2 = PowderSimulator.Material("Met2", 1.0)
 
-    overallFlowRate = meltpoolVolume * meltpoolVolumesPerMinute
-    Met1_Generator = PowderSimulator.NormalParticleGenerator(Met1, 0.5 * meltpoolVolume / particleMeltpoolRatio, meltpoolVolume / particleMeltpoolRatio, overallFlowRate * (1 - percentAddition))
-    Met2_Generator = PowderSimulator.NormalParticleGenerator(Met2, 0.5 * meltpoolVolume / particleMeltpoolRatio, meltpoolVolume / particleMeltpoolRatio, overallFlowRate * percentAddition)
-    #Met1_Generator = PowderSimulator.IdenticalParticleGenerator(Met1, meltpoolVolume / particleMeltpoolRatio, overallFlowRate * 0.99)
-    #Met2_Generator = PowderSimulator.IdenticalParticleGenerator(Met2, meltpoolVolume / particleMeltpoolRatio, overallFlowRate * 0.01)
+    overallFlowRate = particleVolume
+
+    #Met1_Generator = PowderSimulator.NormalParticleGenerator(
+    #        Met1, 
+    #        0.5 * meltpoolVolume / particleMeltpoolRatio, 
+    #        meltpoolVolume / particleMeltpoolRatio, 
+    #        overallFlowRate * (1 - percentAddition))
+    #Met2_Generator = PowderSimulator.NormalParticleGenerator(
+    #        Met2, 
+    #        0.5 * meltpoolVolume / particleMeltpoolRatio, 
+    #        meltpoolVolume / particleMeltpoolRatio, 
+    #        overallFlowRate * percentAddition)
+
+    Met1_Generator = PowderSimulator.IdenticalParticleGenerator(
+            Met1, 
+            particleVolume, 
+            overallFlowRate * (1 - percentAddition))
+    Met2_Generator = PowderSimulator.IdenticalParticleGenerator(
+            Met2, 
+            particleVolume, 
+            overallFlowRate * percentAddition)
 
     ParticleGenerators = [Met2_Generator, Met1_Generator]
 
-    meltpool = PowderSimulator.Meltpool(meltpoolVolume, {Met1: (1 - percentAddition), Met2: percentAddition})
+    meltpool = PowderSimulator.Meltpool(1.0, {Met1: (1 - percentAddition), Met2: percentAddition})
 
     T, result = PowderSimulator.Run(meltpool, ParticleGenerators, simulationDuration)
 
-    print "\r\PercentAddition:", percentAddition
+    print "\r\n percentAddition:", percentAddition
     M.append(percentAddition)
 
     for material, massPercent in result.iteritems():
@@ -40,8 +56,7 @@ while percentAddition < 0.999:
             OUT[material.label] = []
         OUT[material.label].append((standardDeviation, mean))
 
-    percentAddition = percentAddition + percentAddition * (1 - percentAddition) * 0.1
-
+    percentAddition = percentAddition + 0.001
 
 for material, stats in OUT.iteritems():
     #CV = [sd / mean for sd, mean in stats]
